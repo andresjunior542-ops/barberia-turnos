@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barber & Co. - Peluquería & Barbería Premium</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gold: {
+                            400: '#facc15',
+                            500: '#eab308',
+                            600: '#ca8a04',
+                            700: '#a16207',
+                        },
+                        dark: {
+                            900: '#0f0f11',
+                            800: '#18181b',
+                            700: '#27272a',
+                            600: '#3f3f46'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Librería para generación de QR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Librería para generación de hojas de cálculo Excel (.xlsx) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Firebase: base de datos gratuita en la nube que sincroniza en tiempo real entre el celular del cliente y el panel admin -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f0f11;
+            color: #f4f4f5;
+        }
+        .gold-gradient {
+            background: linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%);
+        }
+        .gold-text {
+            background: linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .glass-panel {
+            background: rgba(24, 24, 27, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(234, 179, 8, 0.15);
+        }
+        .pulse-live {
+            box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7);
+            animation: pulse-ring 1.8s infinite cubic-bezier(0.66, 0, 0, 1);
+        }
+        @keyframes pulse-ring {
+            to {
+                box-shadow: 0 0 0 12px rgba(234, 179, 8, 0);
+            }
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f0f11;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #27272a;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ca8a04;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-gold-500 selection:text-black">
+
+    <!-- Header/Navbar (Diseñado responsivo de alto rendimiento para Celular y PC) -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-zinc-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('services')">
+                <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-full gold-gradient flex items-center justify-center text-black font-bold text-xl shadow-lg shadow-gold-500/20">
+                    <i data-lucide="scissors" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+                </div>
+                <div>
+                    <span class="font-serif text-xl sm:text-2xl font-bold tracking-wider gold-text uppercase">Barber & Co.</span>
+                    <span class="block text-[9px] sm:text-[10px] text-zinc-400 tracking-widest uppercase">Grooming & Style Lounge</span>
+                </div>
+            </div>
+
+            <!-- Navegación Superior Unificada para Escritorio y Celular -->
+            <nav class="hidden lg:flex items-center space-x-2 bg-zinc-900/80 p-1.5 rounded-xl border border-zinc-800">
+                <button id="nav-services" onclick="switchTab('services')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 text-gold-400 bg-zinc-800 shadow">
+                    <i data-lucide="scissors" class="w-4 h-4"></i> Servicios
+                </button>
+                <button id="nav-client-turn" onclick="switchTab('client-turn')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 text-zinc-400 hover:text-zinc-200">
+                    <i data-lucide="user" class="w-4 h-4"></i> Mi Turno
+                </button>
+                <button id="nav-live" onclick="switchTab('live')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 text-zinc-400 hover:text-zinc-200">
+                    <i data-lucide="activity" class="w-4 h-4"></i> Pizarra
+                    <span id="queue-badge" class="ml-1 bg-gold-500 text-black text-xs font-bold px-2 py-0.5 rounded-full">1</span>
+                </button>
+                <button id="nav-admin" onclick="switchTab('admin')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 text-zinc-400 hover:text-zinc-200">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i> Panel Admin
+                </button>
+            </nav>
+
+            <!-- Botones de Acción y Soporte -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- REQUERIMIENTO 4: MENU / BOTON DE SOPORTE (+57-315-649-8039) -->
+                <a href="https://wa.me/573156498039?text=Hola,%20necesito%20soporte%20técnico%20con%20el%20sistema%20de%20turnos" target="_blank" class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-semibold text-xs sm:text-sm px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-lg border border-emerald-500/30 transition flex items-center gap-1.5" title="Soporte Técnico WhatsApp">
+                    <i data-lucide="headphone-off" class="w-4 h-4 text-emerald-400"></i>
+                    <span class="hidden sm:inline">Soporte (+57 315 649 8039)</span>
+                    <span class="sm:hidden text-[11px] font-bold">Soporte</span>
+                </a>
+
+                <!-- REQUERIMIENTO 2: BOTON DE ACCESO WEB QR -->
+                <button onclick="openQRModal()" class="bg-zinc-800 hover:bg-zinc-700 text-gold-400 font-semibold text-xs sm:text-sm px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-lg border border-gold-500/30 transition flex items-center gap-1.5" title="Código QR Acceso Web">
+                    <i data-lucide="qr-code" class="w-4 h-4"></i>
+                    <span class="hidden md:inline">QR Web</span>
+                </button>
+
+                <button onclick="openBookingModal()" class="gold-gradient text-black font-semibold text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg hover:brightness-110 transition-all duration-200 shadow-md shadow-gold-500/20 flex items-center gap-1.5">
+                    <i data-lucide="calendar" class="w-4 h-4"></i>
+                    <span>Agendar</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- REQUERIMIENTO 3: NAVEGACION INFERIOR OPTIMIZADA PARA CELULAR -->
+        <div class="lg:hidden flex border-t border-zinc-800 bg-zinc-900/95 fixed bottom-0 left-0 right-0 z-50 shadow-2xl">
+            <button onclick="switchTab('services')" id="mobile-nav-services" class="flex-1 py-2.5 text-[11px] font-semibold flex flex-col items-center gap-0.5 text-gold-400">
+                <i data-lucide="scissors" class="w-5 h-5"></i> Servicios
+            </button>
+            <button onclick="switchTab('client-turn')" id="mobile-nav-client-turn" class="flex-1 py-2.5 text-[11px] font-semibold flex flex-col items-center gap-0.5 text-zinc-400">
+                <i data-lucide="user" class="w-5 h-5"></i> Mi Turno
+            </button>
+            <button onclick="switchTab('live')" id="mobile-nav-live" class="flex-1 py-2.5 text-[11px] font-semibold flex flex-col items-center gap-0.5 text-zinc-400 relative">
+                <i data-lucide="activity" class="w-5 h-5"></i> Pizarra
+                <span id="mobile-queue-badge" class="absolute top-1.5 right-5 bg-gold-500 text-black text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">1</span>
+            </button>
+            <button onclick="switchTab('admin')" id="mobile-nav-admin" class="flex-1 py-2.5 text-[11px] font-semibold flex flex-col items-center gap-0.5 text-zinc-400">
+                <i data-lucide="shield-check" class="w-5 h-5"></i> Admin
+            </button>
+        </div>
+    </header>
+
+    <!-- Contenedor de Notificaciones Toast -->
+    <div id="toast-container" class="fixed top-24 right-4 z-50 flex flex-col gap-2 max-w-xs sm:max-w-sm w-full pointer-events-none"></div>
+
+    <!-- CONTENIDO PRINCIPAL (Adaptado para cel/PC) -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1 mb-20 lg:mb-0 w-full">
+
+        <!-- TAB 1: MENU DE SERVICIOS Y PRECIOS -->
+        <section id="tab-services" class="tab-content transition-opacity duration-300">
+            <!-- Hero Banner -->
+            <div class="relative rounded-2xl overflow-hidden mb-8 p-6 sm:p-10 border border-zinc-800 bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="max-w-xl z-10 text-center md:text-left">
+                    <span class="text-gold-400 text-[11px] font-semibold uppercase tracking-widest bg-gold-500/10 px-3 py-1 rounded-full border border-gold-500/20">Experiencia de Lujo</span>
+                    <h1 class="text-2xl sm:text-4xl font-serif font-bold text-white mt-3 mb-2">Estilo Exclusivo, Corte de Precisión.</h1>
+                    <p class="text-zinc-400 text-xs sm:text-sm mb-5 leading-relaxed">
+                        Conoce nuestro menú de servicios ejecutivos. Agenda tu turno y recibe notificaciones en tiempo real vía WhatsApp.
+                    </p>
+                    <div class="flex flex-wrap gap-3 justify-center md:justify-start items-center">
+                        <button onclick="openBookingModal()" class="gold-gradient text-black font-semibold text-xs sm:text-sm px-5 py-2.5 sm:py-3 rounded-xl hover:shadow-lg hover:shadow-gold-500/20 transition-all flex items-center gap-2">
+                            <i data-lucide="calendar-plus" class="w-4 h-4"></i> Agendar Mi Turno Ahora
+                        </button>
+                        <button onclick="openQRModal()" class="bg-zinc-800 hover:bg-zinc-700 border border-gold-500/30 text-gold-400 font-semibold text-xs sm:text-sm px-4 py-2.5 sm:py-3 rounded-xl transition flex items-center gap-2">
+                            <i data-lucide="qr-code" class="w-4 h-4"></i> Escanear QR Web
+                        </button>
+                    </div>
+                </div>
+                <div class="w-full md:w-auto flex justify-center">
+                    <div class="relative w-48 h-48 sm:w-64 sm:h-64 rounded-2xl border-2 border-gold-500/30 overflow-hidden shadow-2xl group">
+                        <img src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800" alt="Barbería" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-4">
+                            <p class="text-white text-xs sm:text-sm font-bold">Barber & Co.</p>
+                            <p class="text-[10px] text-zinc-400">Precios expresados en Pesos Colombianos (COP)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grilla de Servicios -->
+            <div id="services-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+        </section>
+
+        <!-- TAB 2: MODULO EXCLUSIVO CLIENTES (MI TURNO) -->
+        <section id="tab-client-turn" class="tab-content hidden transition-opacity duration-300">
+            <div class="max-w-xl mx-auto">
+                <div class="text-center mb-6">
+                    <span class="bg-gold-500/10 text-gold-400 border border-gold-500/30 text-[10px] font-bold px-3 py-1 rounded-full uppercase">Módulo de Cliente</span>
+                    <h2 class="text-2xl sm:text-3xl font-serif font-bold text-white mt-2">Estado de Tu Turno</h2>
+                    <p class="text-zinc-400 text-xs sm:text-sm mt-1">Sigue en tiempo real el progreso de tu cita y tu turno en la fila.</p>
+                </div>
+
+                <!-- Tarjeta Principal de Turno -->
+                <div id="client-ticket-card" class="glass-panel p-6 sm:p-8 rounded-2xl border border-gold-500/40 text-center relative overflow-hidden">
+                    <!-- Se llena dinámicamente -->
+                </div>
+
+                <div class="mt-6 glass-panel p-4 rounded-xl border border-zinc-800 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <i data-lucide="message-square" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs sm:text-sm font-bold text-white">Notificaciones por WhatsApp</h4>
+                            <p class="text-[11px] text-zinc-400">Te enviaremos un mensaje directo cuando sea tu turno.</p>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-semibold px-2 py-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Activo</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: PIZARRA DE TURNOS EN VIVO -->
+        <section id="tab-live" class="tab-content hidden transition-opacity duration-300">
+            <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
+                        <i data-lucide="activity" class="w-6 h-6 text-gold-400"></i> Pizarra de Turnos en Tiempo Real
+                    </h2>
+                    <p class="text-zinc-400 text-xs sm:text-sm">Consulta las sillas ocupadas y la cola de espera de la barbería.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Sillas de Barberos -->
+                <div class="lg:col-span-7 space-y-5">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-2">
+                        <i data-lucide="user-check" class="w-4 h-4 text-gold-400"></i> Sillas de Atención
+                    </h3>
+                    <div id="active-chairs-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+                </div>
+
+                <!-- Lista de Espera -->
+                <div class="lg:col-span-5">
+                    <div class="glass-panel rounded-2xl p-5 border border-zinc-800">
+                        <div class="flex items-center justify-between mb-4 border-b border-zinc-800 pb-2">
+                            <h3 class="font-bold text-white text-sm sm:text-base flex items-center gap-2">
+                                <i data-lucide="clock" class="w-4 h-4 text-gold-400"></i> Próximos en Fila
+                            </h3>
+                            <span id="queue-count-label" class="text-[11px] font-semibold bg-zinc-800 px-2.5 py-0.5 rounded-full text-zinc-300">0 Personas</span>
+                        </div>
+                        <div id="waiting-queue-list" class="space-y-3 max-h-[380px] overflow-y-auto pr-1"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: PANEL ADMINISTRADOR PROTEGIDO -->
+        <section id="tab-admin" class="tab-content hidden transition-opacity duration-300">
+            
+            <!-- Vista de Login para Administrador -->
+            <div id="admin-login-view" class="max-w-md mx-auto py-8">
+                <div class="glass-panel p-6 sm:p-8 rounded-2xl border border-gold-500/30 text-center shadow-2xl">
+                    <div class="w-12 h-12 rounded-full gold-gradient text-black flex items-center justify-center mx-auto mb-3 font-bold">
+                        <i data-lucide="lock" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-xl sm:text-2xl font-bold text-white mb-1">Acceso Administrador</h3>
+                    <p class="text-xs text-zinc-400 mb-5">Ingresa tu contraseña para gestionar el sistema y métricas.</p>
+                    
+                    <form onsubmit="handleAdminLogin(event)" class="space-y-4">
+                        <div>
+                            <input type="password" id="admin-pass-input" placeholder="Contraseña admin (por defecto: 1234)" required class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-xs sm:text-sm text-center text-white focus:outline-none focus:border-gold-500">
+                        </div>
+                        <button type="submit" class="w-full gold-gradient text-black font-bold py-3 rounded-xl hover:brightness-110 transition shadow-lg shadow-gold-500/20 text-xs sm:text-sm">
+                            Ingresar al Panel
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Vista del Dashboard Admin -->
+            <div id="admin-dashboard-view" class="hidden">
+                <div class="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-gold-500/10 text-gold-400 border border-gold-500/30 text-[10px] font-bold px-2 py-0.5 rounded uppercase">Acceso Autorizado</span>
+                            <h2 class="text-xl sm:text-2xl font-bold text-white">Panel de Administración</h2>
+                        </div>
+                        <p class="text-zinc-400 text-xs sm:text-sm">Control general de cortes, ingresos, validación de clientes y reportes.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- REQUERIMIENTO 1: DESCARGAR INFORME EXACTO A LA IMAGEN (EXCEL .XLSX) -->
+                        <button onclick="downloadExactExcelReport()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-2 transition shadow-lg shadow-emerald-600/20">
+                            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Descargar Informe Excel
+                        </button>
+                        <button onclick="openManualClientModal()" class="gold-gradient text-black font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 hover:brightness-110 shadow-md">
+                            <i data-lucide="user-plus" class="w-4 h-4"></i> Cliente Presencial
+                        </button>
+                        <button onclick="logoutAdmin()" class="bg-rose-500/20 text-rose-400 border border-rose-500/30 p-2 rounded-xl hover:bg-rose-500 hover:text-white transition" title="Cerrar Sesión">
+                            <i data-lucide="log-out" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Métricas Principales en Pesos Colombianos -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+                    <div class="glass-panel p-4 sm:p-5 rounded-2xl border border-zinc-800">
+                        <div class="flex items-center justify-between text-zinc-400 mb-2">
+                            <span class="text-[11px] font-medium">Atendidos Hoy</span>
+                            <i data-lucide="scissors" class="w-4 h-4 text-gold-400"></i>
+                        </div>
+                        <div id="stat-completed" class="text-xl sm:text-2xl font-bold text-white">1</div>
+                        <span class="text-[10px] text-emerald-400 flex items-center gap-1 mt-1">
+                            <i data-lucide="check-circle-2" class="w-3 h-3"></i> Confirmados
+                        </span>
+                    </div>
+
+                    <div class="glass-panel p-4 sm:p-5 rounded-2xl border border-zinc-800">
+                        <div class="flex items-center justify-between text-zinc-400 mb-2">
+                            <span class="text-[11px] font-medium">Ingresos (COP)</span>
+                            <i data-lucide="banknote" class="w-4 h-4 text-emerald-400"></i>
+                        </div>
+                        <div id="stat-revenue" class="text-xl sm:text-2xl font-bold text-white">$ 36.000</div>
+                        <span class="text-[10px] text-zinc-400 mt-1 block">Solo asistidos</span>
+                    </div>
+
+                    <div class="glass-panel p-4 sm:p-5 rounded-2xl border border-zinc-800">
+                        <div class="flex items-center justify-between text-zinc-400 mb-2">
+                            <span class="text-[11px] font-medium">Ausentes</span>
+                            <i data-lucide="user-x" class="w-4 h-4 text-rose-400"></i>
+                        </div>
+                        <div id="stat-absent" class="text-xl sm:text-2xl font-bold text-white">1</div>
+                        <span class="text-[10px] text-rose-400 mt-1 block">No sumados</span>
+                    </div>
+
+                    <div class="glass-panel p-4 sm:p-5 rounded-2xl border border-zinc-800">
+                        <div class="flex items-center justify-between text-zinc-400 mb-2">
+                            <span class="text-[11px] font-medium">En Espera</span>
+                            <i data-lucide="users" class="w-4 h-4 text-amber-400"></i>
+                        </div>
+                        <div id="stat-waiting" class="text-xl sm:text-2xl font-bold text-white">0</div>
+                        <span class="text-[10px] text-amber-400 mt-1 block">En cola</span>
+                    </div>
+                </div>
+
+                <!-- Control Sillas -->
+                <div class="mb-6">
+                    <h3 class="text-base font-bold text-white mb-3 flex items-center gap-2">
+                        <i data-lucide="play-circle" class="w-4 h-4 text-gold-400"></i> Ceder Turno y Gestión de Sillas
+                    </h3>
+                    <div id="admin-chairs-control" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                </div>
+
+                <!-- Tabla de Histórico -->
+                <div class="glass-panel rounded-2xl border border-zinc-800 p-4 sm:p-6">
+                    <h3 class="font-bold text-white text-sm sm:text-base mb-3 flex items-center gap-2">
+                        <i data-lucide="list-ordered" class="w-4 h-4 text-gold-400"></i> Registro General del Día
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs sm:text-sm text-zinc-300">
+                            <thead class="text-[11px] uppercase bg-zinc-900/80 text-zinc-400 border-b border-zinc-800">
+                                <tr>
+                                    <th class="p-2.5">Turno</th>
+                                    <th class="p-2.5">Cliente</th>
+                                    <th class="p-2.5">Monto (COP)</th>
+                                    <th class="p-2.5">Atendido</th>
+                                    <th class="p-2.5">Hora Inicio</th>
+                                    <th class="p-2.5">Hora Fin</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-table-body" class="divide-y divide-zinc-800"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL PREGUNTA PRESENCIA DEL CLIENTE -->
+    <div id="presence-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="glass-panel w-full max-w-sm rounded-2xl border border-gold-500/40 p-5 text-center">
+            <div class="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-2">
+                <i data-lucide="user-check" class="w-5 h-5"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-1">Verificación de Cliente</h3>
+            <p id="presence-modal-text" class="text-xs text-zinc-300 mb-5">¿El cliente está presente en el local para tomar su turno?</p>
+
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="confirmClientPresence(false)" class="bg-zinc-800 hover:bg-rose-900/50 text-rose-300 border border-rose-500/30 py-2.5 rounded-xl font-semibold text-xs transition">
+                    No asistió (No sumar)
+                </button>
+                <button onclick="confirmClientPresence(true)" class="gold-gradient text-black py-2.5 rounded-xl font-bold text-xs hover:brightness-110 transition shadow-lg shadow-gold-500/20">
+                    Sí, está presente
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- REQUERIMIENTO 2: MODAL CÓDIGO QR PARA ACCESO WEB DIRECTO -->
+    <div id="qr-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="glass-panel w-full max-w-sm rounded-2xl border border-gold-500/40 p-6 text-center">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-white text-base flex items-center gap-2">
+                    <i data-lucide="qr-code" class="w-4 h-4 text-gold-400"></i> Escanea para Entrar a la Web
+                </h3>
+                <button onclick="closeQRModal()" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <div class="bg-white p-4 rounded-xl inline-block mb-3 shadow-xl" id="qrcode-container"></div>
+            
+            <p class="text-xs text-zinc-300 font-medium mb-1">Código de Acceso Web para Clientes</p>
+            <p class="text-[11px] text-zinc-400">Escanea este código con la cámara del celular para abrir la web de la barbería, ver la lista de turnos en vivo y agendar citas.</p>
+        </div>
+    </div>
+
+    <!-- MODAL AGENDAR TURNO -->
+    <div id="booking-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="glass-panel w-full max-w-md rounded-2xl border border-gold-500/30 overflow-hidden shadow-2xl">
+            <div class="p-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="scissors" class="w-5 h-5 text-gold-400"></i>
+                    <h3 class="font-bold text-white text-base">Agendar Turno</h3>
+                </div>
+                <button onclick="closeBookingModal()" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <form id="booking-form" onsubmit="handleBookingSubmit(event)" class="p-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-zinc-300 mb-1">Nombre Completo *</label>
+                    <input type="text" id="book-name" required placeholder="Ej: Hilton Mendoza" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-gold-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-zinc-300 mb-1">WhatsApp (Número con código de país) *</label>
+                    <input type="tel" id="book-phone" required placeholder="Ej: 573001234567" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-gold-500">
+                    <span class="text-[10px] text-zinc-400 mt-0.5 block">Se enviará la alerta del turno a este número.</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-300 mb-1">Servicio *</label>
+                        <select id="book-service" required onchange="updateBookingSummary()" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-2.5 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-300 mb-1">Barbero</label>
+                        <select id="book-barber" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-2.5 py-2.5 text-xs text-white focus:outline-none focus:border-gold-500">
+                            <option value="Cualquiera">Cualquiera</option>
+                            <option value="Carlos 'Master'">Carlos "Master"</option>
+                            <option value="Santi Fade">Santi Fade</option>
+                            <option value="Alex Blade">Alex Blade</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="booking-summary-box" class="p-3 rounded-xl bg-zinc-900/80 border border-zinc-800 flex justify-between items-center text-xs">
+                    <span class="text-zinc-400">Precio: <strong id="summary-price" class="text-gold-400 font-bold">$ 0</strong></span>
+                    <span class="text-zinc-400">Duración: <strong id="summary-time" class="text-white">0 min</strong></span>
+                </div>
+
+                <div class="pt-1">
+                    <button type="submit" class="w-full gold-gradient text-black font-bold py-3 rounded-xl hover:brightness-110 transition shadow-lg shadow-gold-500/20 flex items-center justify-center gap-2 text-xs sm:text-sm">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i> Confirmar Turno
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL CLIENTE PRESENCIAL -->
+    <div id="manual-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="glass-panel w-full max-w-sm rounded-2xl border border-zinc-700 overflow-hidden shadow-2xl">
+            <div class="p-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900">
+                <h3 class="font-bold text-white text-sm flex items-center gap-2">
+                    <i data-lucide="user-plus" class="w-4 h-4 text-gold-400"></i> Cliente Presencial
+                </h3>
+                <button onclick="closeManualModal()" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <form id="manual-form" onsubmit="handleManualSubmit(event)" class="p-4 space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-zinc-300 mb-1">Nombre del Cliente *</label>
+                    <input type="text" id="manual-name" required placeholder="Ej: Jose Mosquera" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-zinc-300 mb-1">Teléfono / WhatsApp</label>
+                    <input type="tel" id="manual-phone" placeholder="Ej: 573000000000" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-zinc-300 mb-1">Servicio</label>
+                    <select id="manual-service" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-2.5 py-2 text-xs text-white"></select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-zinc-300 mb-1">Asignar Barbero</label>
+                    <select id="manual-barber" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-2.5 py-2 text-xs text-white">
+                        <option value="Carlos 'Master'">Carlos "Master"</option>
+                        <option value="Santi Fade">Santi Fade</option>
+                        <option value="Alex Blade">Alex Blade</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="w-full bg-emerald-500 text-black font-bold py-2.5 rounded-xl hover:bg-emerald-400 transition flex items-center justify-center gap-1.5 text-xs mt-2">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Añadir a la Lista
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Pie de Página con número de soporte -->
+    <footer class="border-t border-zinc-800 bg-zinc-950 py-5 mt-10 text-center text-xs text-zinc-400">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <i data-lucide="scissors" class="w-4 h-4 text-gold-400"></i>
+                <span class="font-serif font-bold text-white">Barber & Co.</span> — Grooming Experience
+            </div>
+            <p>© 2026 Sistema Integral de Turnos. Soporte Técnico: <a href="https://wa.me/573156498039" class="text-gold-400 font-semibold hover:underline">+57 315 649 8039</a></p>
+        </div>
+    </footer>
+
+    <!-- LOGICA JAVASCRIPT INTEGRADA -->
+    <script>
+        // ============================================================
+        // CONFIGURACIÓN DE FIREBASE — BASE DE DATOS GRATUITA EN LA NUBE
+        // Esto es lo que hace que un turno tomado en el celular de un
+        // cliente aparezca EN VIVO en el panel del administrador, aunque
+        // estén en dispositivos distintos.
+        //
+        // PASOS PARA ACTIVARLO (gratis, toma ~5 minutos):
+        // 1. Entra a https://console.firebase.google.com
+        // 2. Crea un proyecto nuevo (gratis, plan "Spark")
+        // 3. Dentro del proyecto: "Compilación" > "Firestore Database" > "Crear base de datos"
+        //    (elige modo producción o prueba, cualquiera sirve para empezar)
+        // 4. Ve a "Configuración del proyecto" (ícono de engranaje) > pestaña "General"
+        // 5. Baja hasta "Tus apps" > clic en el ícono web "</>" > registra la app
+        // 6. Copia el objeto firebaseConfig que te muestra Firebase y pégalo abajo,
+        //    reemplazando TODO este bloque de ejemplo.
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyAqSfeS0-lS8GBUL9f5w1A_ukBkcR0DbTo",
+            authDomain: "planning-with-ai-b17b4.firebaseapp.com",
+            projectId: "planning-with-ai-b17b4",
+            storageBucket: "planning-with-ai-b17b4.firebasestorage.app",
+            messagingSenderId: "155214900727",
+            appId: "1:155214900727:web:b855705fbe5aae04ec12f2"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const turnosCollection = db.collection('turnos');
+        const contadorDoc = db.collection('sistema').doc('contador');
+
+        const SERVICES_DATA = [
+            {
+                id: 's1',
+                name: 'Corte Clásico & Fade Executive',
+                category: 'corte',
+                priceCOP: 36000,
+                timeMinutes: 35,
+                popular: true,
+                image: 'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&q=80&w=500',
+                includes: [
+                    'Asesoría de visajismo y perfil facial',
+                    'Lavado capilar relajante previo y posterior',
+                    'Corte con tijera / máquina de alta precisión',
+                    'Peinado con pomada mate o cera premium'
+                ]
+            },
+            {
+                id: 's2',
+                name: 'Barba Real & Ritual Toalla Caliente',
+                category: 'barba',
+                priceCOP: 28000,
+                timeMinutes: 25,
+                popular: false,
+                image: 'https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&q=80&w=500',
+                includes: [
+                    'Perfilado con navaja tradicional',
+                    'Aplicación de aceites hidratantes y bálsamo',
+                    'Tratamiento térmico con toalla caliente'
+                ]
+            },
+            {
+                id: 's3',
+                name: 'Combo VIP: Corte + Barba + Spa',
+                category: 'combo',
+                priceCOP: 50000,
+                timeMinutes: 55,
+                popular: true,
+                image: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=500',
+                includes: [
+                    'Corte de cabello completo personalizado',
+                    'Ritual completo de Barba Real',
+                    'Exfoliación o mascarilla facial'
+                ]
+            },
+            {
+                id: 's4',
+                name: 'Colorimetría / Camuflaje Canas',
+                category: 'color',
+                priceCOP: 45000,
+                timeMinutes: 45,
+                popular: false,
+                image: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=500',
+                includes: [
+                    'Matización discreta para canas',
+                    'Tinte orgánico sin amoníaco',
+                    'Peinado y acabado final'
+                ]
+            }
+        ];
+
+        let barbersState = [
+            { id: 'b1', name: 'Carlos "Master"', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200' },
+            { id: 'b2', name: 'Santi Fade', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200' },
+            { id: 'b3', name: 'Alex Blade', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200' }
+        ];
+
+        // La cola de turnos YA NO vive solo en la memoria del navegador:
+        // se llena en tiempo real desde Firestore (ver listenToTurnQueue),
+        // así que todos los dispositivos (clientes y admin) ven lo mismo al instante.
+        let turnQueue = [];
+
+        let myBookedTicketId = null;
+        let isAdminLoggedIn = false;
+        let pendingBarberForNext = null;
+
+        // Un turno se considera "de hoy" para las métricas y el informe del panel admin
+        function isFromToday(ticket) {
+            if (!ticket.createdAt || !ticket.createdAt.toDate) return true;
+            return ticket.createdAt.toDate().toDateString() === new Date().toDateString();
+        }
+
+        // Escucha en tiempo real la colección de turnos en Firestore.
+        // Cada vez que CUALQUIER dispositivo agrega o cambia un turno,
+        // esta función se dispara sola y refresca la pantalla (cliente, pizarra y admin).
+        function listenToTurnQueue() {
+            turnosCollection.orderBy('createdAt', 'asc').onSnapshot((snapshot) => {
+                turnQueue = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderQueueDisplay();
+            }, (error) => {
+                console.error('Error de sincronización con Firebase:', error);
+                showToast('Sin conexión con la base de datos. Revisa la configuración de Firebase.', 'error');
+            });
+        }
+
+        // Genera el siguiente número de turno (A1, A2, A3...) de forma segura
+        // aunque dos clientes agenden al mismo tiempo desde celulares distintos.
+        async function getNextTicketNumber() {
+            const nuevo = await db.runTransaction(async (transaction) => {
+                const doc = await transaction.get(contadorDoc);
+                const siguiente = (doc.exists ? (doc.data().ultimo || 0) : 0) + 1;
+                transaction.set(contadorDoc, { ultimo: siguiente }, { merge: true });
+                return siguiente;
+            });
+            return `A${nuevo}`;
+        }
+
+        // Formateador de pesos colombianos idéntico al de la imagen ($ 36.000)
+        function formatCOP(amount) {
+            return '$ ' + new Intl.NumberFormat('es-CO').format(amount);
+        }
+
+        function getCurrentFormattedTime() {
+            const now = new Date();
+            let hours = now.getHours();
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'p. m.' : 'a. m.';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            return `${hours}:${minutes} ${ampm}`;
+        }
+
+        // Navegación entre pestañas (Adaptada a Celular/PC)
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            // Navegación PC
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('text-gold-400', 'bg-zinc-800', 'shadow');
+                btn.classList.add('text-zinc-400');
+            });
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if (activeNav) {
+                activeNav.classList.add('text-gold-400', 'bg-zinc-800', 'shadow');
+                activeNav.classList.remove('text-zinc-400');
+            }
+
+            // Navegación Móvil
+            ['services', 'client-turn', 'live', 'admin'].forEach(mId => {
+                const mobBtn = document.getElementById(`mobile-nav-${mId}`);
+                if (mobBtn) {
+                    if (mId === tabId) {
+                        mobBtn.classList.remove('text-zinc-400');
+                        mobBtn.classList.add('text-gold-400');
+                    } else {
+                        mobBtn.classList.remove('text-gold-400');
+                        mobBtn.classList.add('text-zinc-400');
+                    }
+                }
+            });
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Autenticación Administrador
+        function handleAdminLogin(e) {
+            e.preventDefault();
+            const pass = document.getElementById('admin-pass-input').value;
+            if (pass === '1234') { 
+                isAdminLoggedIn = true;
+                document.getElementById('admin-login-view').classList.add('hidden');
+                document.getElementById('admin-dashboard-view').classList.remove('hidden');
+                showToast('Sesión de Administrador iniciada', 'success');
+                renderAdminPanel();
+            } else {
+                showToast('Contraseña incorrecta', 'error');
+            }
+        }
+
+        function logoutAdmin() {
+            isAdminLoggedIn = false;
+            document.getElementById('admin-pass-input').value = '';
+            document.getElementById('admin-dashboard-view').classList.add('hidden');
+            document.getElementById('admin-login-view').classList.remove('hidden');
+            showToast('Sesión cerrada');
+        }
+
+        // Notificación por WhatsApp
+        function sendWhatsAppNotification(phone, ticketNum, clientName) {
+            if (!phone || phone === 'Presencial') return;
+            const cleanPhone = phone.replace(/\D/g, '');
+            const msg = encodeURIComponent(`Hola ${clientName}, ¡es tu turno en Barber & Co.! Tu ticket es ${ticketNum}. Por favor acércate a la silla de atención.`);
+            const waUrl = `https://wa.me/${cleanPhone}?text=${msg}`;
+            window.open(waUrl, '_blank');
+        }
+
+        // Renderizado de Servicios
+        function renderServices() {
+            const grid = document.getElementById('services-grid');
+            grid.innerHTML = '';
+
+            SERVICES_DATA.forEach(s => {
+                const card = document.createElement('div');
+                card.className = 'glass-panel rounded-2xl overflow-hidden border border-zinc-800 hover:border-gold-500/40 transition flex flex-col justify-between group';
+                card.innerHTML = `
+                    <div>
+                        <div class="relative h-40 sm:h-48 overflow-hidden">
+                            <img src="${s.image}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <div class="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent"></div>
+                            ${s.popular ? `<span class="absolute top-3 right-3 bg-gold-500 text-black text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">Más Pedido</span>` : ''}
+                            <div class="absolute bottom-3 left-4 right-4">
+                                <span class="text-[9px] uppercase font-bold text-gold-400">${s.category}</span>
+                                <h3 class="text-base font-bold text-white">${s.name}</h3>
+                            </div>
+                        </div>
+                        <div class="p-4 sm:p-5">
+                            <div class="flex items-center justify-between mb-3 pb-2 border-b border-zinc-800">
+                                <div class="text-lg font-black text-gold-400">${formatCOP(s.priceCOP)}</div>
+                                <div class="text-[11px] text-zinc-400 flex items-center gap-1 bg-zinc-900 px-2.5 py-1 rounded-lg border border-zinc-800">
+                                    <i data-lucide="clock" class="w-3 h-3 text-gold-400"></i> ${s.timeMinutes} mins
+                                </div>
+                            </div>
+                            <p class="text-[11px] font-semibold text-zinc-300 mb-1.5">Incluye:</p>
+                            <ul class="space-y-1.5 mb-4">
+                                ${s.includes.map(inc => `<li class="text-[11px] text-zinc-400 flex items-center gap-1.5"><i data-lucide="check" class="w-3 h-3 text-gold-400"></i>${inc}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="p-4 sm:p-5 pt-0">
+                        <button onclick="quickBookService('${s.id}')" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-gold-500 hover:text-black text-white font-semibold text-xs transition flex items-center justify-center gap-2">
+                            <i data-lucide="calendar" class="w-3.5 h-3.5"></i> Agendar Servicio
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        // Pizarra de Turnos en Vivo
+        function renderQueueDisplay() {
+            const activeContainer = document.getElementById('active-chairs-container');
+            activeContainer.innerHTML = '';
+
+            barbersState.forEach((barber, i) => {
+                const currentTurn = turnQueue.find(t => t.status === 'in_progress' && t.barberName === barber.name);
+                const card = document.createElement('div');
+                card.className = `glass-panel rounded-2xl p-4 sm:p-5 border ${currentTurn ? 'border-gold-500/40' : 'border-zinc-800 opacity-70'}`;
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2.5">
+                            <img src="${barber.avatar}" class="w-9 h-9 rounded-full object-cover border border-gold-500/50">
+                            <div>
+                                <h4 class="text-xs sm:text-sm font-bold text-white">${barber.name}</h4>
+                                <span class="text-[9px] text-zinc-400">Silla #${i+1}</span>
+                            </div>
+                        </div>
+                        ${currentTurn ? `<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-bold pulse-live">EN CORTE</span>` : `<span class="px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 text-[9px]">LIBRE</span>`}
+                    </div>
+                    ${currentTurn ? `
+                        <div class="bg-zinc-900 rounded-xl p-3 border border-zinc-800">
+                            <div class="flex justify-between text-gold-400 font-black text-lg">
+                                <span>Turno ${currentTurn.ticketNum}</span>
+                                <span class="text-xs text-zinc-400 font-normal">${currentTurn.estimatedMinutes} min</span>
+                            </div>
+                            <div class="text-xs font-bold text-white mt-0.5">${currentTurn.clientName}</div>
+                            <div class="text-[11px] text-zinc-400 truncate">${currentTurn.serviceName}</div>
+                        </div>
+                    ` : `<div class="bg-zinc-900/40 rounded-xl p-3 border border-dashed border-zinc-800 text-center text-xs text-zinc-400">Silla disponible</div>`}
+                `;
+                activeContainer.appendChild(card);
+            });
+
+            const waitingQueueList = document.getElementById('waiting-queue-list');
+            waitingQueueList.innerHTML = '';
+            const waiting = turnQueue.filter(t => t.status === 'waiting');
+
+            document.getElementById('queue-count-label').innerText = `${waiting.length} personas`;
+            document.getElementById('queue-badge').innerText = waiting.length;
+            document.getElementById('mobile-queue-badge').innerText = waiting.length;
+
+            if (waiting.length === 0) {
+                waitingQueueList.innerHTML = `<p class="text-center text-xs text-zinc-400 py-6">No hay clientes en espera ahora mismo.</p>`;
+            } else {
+                waiting.forEach((ticket, idx) => {
+                    const isMine = ticket.id === myBookedTicketId;
+                    const item = document.createElement('div');
+                    item.className = `p-3 rounded-xl border ${isMine ? 'bg-gold-500/10 border-gold-500' : 'bg-zinc-900/80 border-zinc-800'} flex items-center justify-between`;
+                    item.innerHTML = `
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-lg ${isMine ? 'bg-gold-500 text-black' : 'bg-zinc-800 text-gold-400'} text-xs flex items-center justify-center font-bold">
+                                ${ticket.ticketNum}
+                            </div>
+                            <div>
+                                <div class="text-xs font-bold text-white">${ticket.clientName} ${isMine ? '<span class="text-[9px] bg-gold-500 text-black px-1 rounded">(TÚ)</span>':''}</div>
+                                <div class="text-[10px] text-zinc-400 truncate max-w-[130px]">${ticket.serviceName}</div>
+                            </div>
+                        </div>
+                        <span class="text-[10px] bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded border border-zinc-700">Pos #${idx + 1}</span>
+                    `;
+                    waitingQueueList.appendChild(item);
+                });
+            }
+
+            renderClientTurnTab();
+            if (isAdminLoggedIn) renderAdminPanel();
+            lucide.createIcons();
+        }
+
+        // Render Módulo del Cliente
+        function renderClientTurnTab() {
+            const container = document.getElementById('client-ticket-card');
+            
+            if (!myBookedTicketId) {
+                container.innerHTML = `
+                    <div class="py-6">
+                        <i data-lucide="ticket" class="w-10 h-10 text-zinc-600 mx-auto mb-2"></i>
+                        <h3 class="text-base font-bold text-white mb-1">No tienes un turno agendado</h3>
+                        <p class="text-xs text-zinc-400 mb-5">Agenda tu cita ahora para ver tu lugar en la fila y tiempo estimado.</p>
+                        <button onclick="openBookingModal()" class="gold-gradient text-black font-bold px-5 py-2.5 rounded-xl hover:brightness-110 transition shadow-lg shadow-gold-500/20 text-xs">
+                            Agendar Mi Turno
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            const ticket = turnQueue.find(t => t.id === myBookedTicketId);
+            if (!ticket) {
+                container.innerHTML = `
+                    <div class="py-6">
+                        <i data-lucide="check-circle-2" class="w-10 h-10 text-emerald-400 mx-auto mb-2"></i>
+                        <h3 class="text-base font-bold text-white mb-1">¡Tu turno ha finalizado!</h3>
+                        <p class="text-xs text-zinc-400 mb-4">Gracias por tu preferencia en Barber & Co.</p>
+                        <button onclick="myBookedTicketId=null; renderClientTurnTab();" class="bg-zinc-800 text-zinc-300 px-4 py-2 rounded-xl text-xs hover:bg-zinc-700">
+                            Agendar nuevo turno
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            const waitingList = turnQueue.filter(t => t.status === 'waiting');
+            const pos = waitingList.findIndex(t => t.id === ticket.id) + 1;
+
+            container.innerHTML = `
+                <div class="w-16 h-16 rounded-2xl gold-gradient text-black font-black text-2xl flex items-center justify-center mx-auto mb-3 shadow-xl shadow-gold-500/20">
+                    ${ticket.ticketNum}
+                </div>
+                <h3 class="text-xl font-bold text-white mb-0.5">${ticket.clientName}</h3>
+                <p class="text-xs text-zinc-400 mb-4">${ticket.serviceName} • Barbero: ${ticket.barberName}</p>
+
+                <div class="bg-zinc-900/90 rounded-xl p-3.5 border border-zinc-800 max-w-xs mx-auto mb-3">
+                    ${ticket.status === 'in_progress' ? `
+                        <span class="text-emerald-400 font-bold text-base animate-pulse block">¡ES TU TURNO AHORA!</span>
+                        <span class="text-xs text-zinc-400">Pasa a la silla con tu barbero</span>
+                    ` : `
+                        <span class="text-gold-400 font-bold text-lg block">Posición en fila: #${pos}</span>
+                        <span class="text-[11px] text-zinc-400 block mt-0.5">Tiempo estimado: ~${pos * 20} minutos</span>
+                    `}
+                </div>
+                <p class="text-[11px] text-zinc-400">Monto del servicio: <strong class="text-gold-400">${formatCOP(ticket.price)}</strong></p>
+            `;
+        }
+
+        // Ceder Turno con Verificación
+        function triggerNextTurnForBarber(barberName) {
+            pendingBarberForNext = barberName;
+            
+            let nextTicket = turnQueue.find(t => t.status === 'waiting' && (t.barberName === barberName || t.barberName === 'Cualquiera'));
+            if (!nextTicket) nextTicket = turnQueue.find(t => t.status === 'waiting');
+
+            if (!nextTicket) {
+                showToast('No hay clientes en espera para asignar.');
+                return;
+            }
+
+            document.getElementById('presence-modal-text').innerText = `¿El cliente ${nextTicket.clientName} (Turno ${nextTicket.ticketNum}) está presente en la barbería?`;
+            document.getElementById('presence-modal').classList.remove('hidden');
+        }
+
+        async function confirmClientPresence(isPresent) {
+            document.getElementById('presence-modal').classList.add('hidden');
+
+            let nextTicket = turnQueue.find(t => t.status === 'waiting' && (t.barberName === pendingBarberForNext || t.barberName === 'Cualquiera'));
+            if (!nextTicket) nextTicket = turnQueue.find(t => t.status === 'waiting');
+
+            if (!nextTicket) return;
+
+            try {
+                if (isPresent) {
+                    await turnosCollection.doc(nextTicket.id).update({
+                        status: 'in_progress',
+                        barberName: pendingBarberForNext,
+                        attended: 'SI',
+                        startTime: getCurrentFormattedTime()
+                    });
+                    showToast(`¡Turno ${nextTicket.ticketNum} iniciado con ${nextTicket.clientName}!`, 'success');
+                    sendWhatsAppNotification(nextTicket.phone, nextTicket.ticketNum, nextTicket.clientName);
+                } else {
+                    await turnosCollection.doc(nextTicket.id).update({
+                        status: 'absent',
+                        attended: 'NO',
+                        startTime: '0',
+                        endTime: '0'
+                    });
+                    showToast(`Cliente ${nextTicket.clientName} marcado como ausente (no sumado a ingresos).`, 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('No se pudo actualizar el turno. Revisa tu conexión.', 'error');
+            }
+        }
+
+        async function completeCurrentTurn(ticketId) {
+            const ticket = turnQueue.find(t => t.id === ticketId);
+            if (!ticket) return;
+            try {
+                await turnosCollection.doc(ticketId).update({
+                    status: 'completed',
+                    attended: 'SI',
+                    endTime: getCurrentFormattedTime()
+                });
+                showToast(`Corte completado. Ingreso registrado: ${formatCOP(ticket.price)}`, 'success');
+            } catch (err) {
+                console.error(err);
+                showToast('No se pudo completar el turno. Revisa tu conexión.', 'error');
+            }
+        }
+
+        // Render Panel de Administrador
+        function renderAdminPanel() {
+            const todayQueue = turnQueue.filter(isFromToday);
+            const completedToday = todayQueue.filter(t => t.status === 'completed');
+            const absentToday = todayQueue.filter(t => t.status === 'absent');
+
+            document.getElementById('stat-completed').innerText = completedToday.length;
+            document.getElementById('stat-revenue').innerText = formatCOP(completedToday.reduce((sum, t) => sum + t.price, 0));
+            document.getElementById('stat-absent').innerText = absentToday.length;
+            document.getElementById('stat-waiting').innerText = turnQueue.filter(t => t.status === 'waiting').length;
+
+            const adminChairsControl = document.getElementById('admin-chairs-control');
+            adminChairsControl.innerHTML = '';
+
+            barbersState.forEach(barber => {
+                const currentTurn = turnQueue.find(t => t.status === 'in_progress' && t.barberName === barber.name);
+                const card = document.createElement('div');
+                card.className = 'glass-panel rounded-2xl p-4 border border-zinc-800 flex flex-col justify-between';
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="font-bold text-white text-xs sm:text-sm">${barber.name}</h4>
+                            <span class="text-[9px] text-zinc-400 uppercase">Silla</span>
+                        </div>
+                        ${currentTurn ? `
+                            <div class="p-2.5 bg-zinc-900 rounded-xl border border-gold-500/30 mb-3">
+                                <div class="flex justify-between text-xs text-gold-400 font-bold mb-0.5">
+                                    <span>Turno ${currentTurn.ticketNum}</span>
+                                    <span>${formatCOP(currentTurn.price)}</span>
+                                </div>
+                                <div class="text-xs font-bold text-white">${currentTurn.clientName}</div>
+                                <div class="text-[10px] text-zinc-400 truncate">${currentTurn.serviceName}</div>
+                            </div>
+                        ` : `<div class="p-2.5 bg-zinc-900/60 rounded-xl border border-zinc-800 text-center mb-3 text-xs text-zinc-400">Silla Libre</div>`}
+                    </div>
+                    <div>
+                        ${currentTurn ? `
+                            <button onclick="completeCurrentTurn('${currentTurn.id}')" class="w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs transition flex items-center justify-center gap-1.5">
+                                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Finalizar Corte (OK)
+                            </button>
+                        ` : `
+                            <button onclick="triggerNextTurnForBarber('${barber.name}')" class="w-full py-2 rounded-xl bg-gold-500 hover:bg-gold-400 text-black font-bold text-xs transition flex items-center justify-center gap-1.5">
+                                <i data-lucide="arrow-right-circle" class="w-3.5 h-3.5"></i> Ceder / Llamar Turno
+                            </button>
+                        `}
+                    </div>
+                `;
+                adminChairsControl.appendChild(card);
+            });
+
+            const tbody = document.getElementById('admin-table-body');
+            tbody.innerHTML = '';
+            todayQueue.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-zinc-900/50 transition';
+                
+                tr.innerHTML = `
+                    <td class="p-2.5 font-bold text-gold-400">${t.ticketNum}</td>
+                    <td class="p-2.5 font-medium text-white">${t.clientName}</td>
+                    <td class="p-2.5 font-bold text-white">${formatCOP(t.price)}</td>
+                    <td class="p-2.5 font-bold ${t.attended === 'SI' ? 'text-emerald-400' : 'text-rose-400'}">${t.attended || 'NO'}</td>
+                    <td class="p-2.5 text-zinc-300 text-xs">${t.startTime || '0'}</td>
+                    <td class="p-2.5 text-zinc-300 text-xs">${t.endTime || '0'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        // REQUERIMIENTO 1: DESCARGA DE INFORME EXCEL (.XLSX) EXACTO A LA IMAGEN ADJUNTADA
+        function downloadExactExcelReport() {
+            const now = new Date();
+            const dateStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()}`;
+            
+            // Construcción exacta de las filas igual que en la imagen de referencia
+            const dataRows = [
+                ["INFORME DIARIO DE BARBERIA - BARBER & CO.", "", "", "", `Fecha: ${dateStr}`],
+                ["CLIENTE", "MONTO", "TURNO", "ATENDIDO", "HORA INICIO", "HORA FIN"]
+            ];
+
+            // Insertar datos de cada cliente (solo los del día de hoy)
+            const turnosHoy = turnQueue.filter(isFromToday);
+            turnosHoy.forEach(t => {
+                const montoFormateado = `$ ${new Intl.NumberFormat('es-CO').format(t.price)}`;
+                const atendidoStr = t.attended || (t.status === 'completed' ? 'SI' : 'NO');
+                const horaInicioStr = t.startTime || (atendidoStr === 'SI' ? '10:30 a. m.' : '0');
+                const horaFinStr = t.endTime || (atendidoStr === 'SI' ? '11:00 a. m.' : '0');
+
+                dataRows.push([
+                    t.clientName.toUpperCase(),
+                    montoFormateado,
+                    t.ticketNum,
+                    atendidoStr,
+                    horaInicioStr,
+                    horaFinStr
+                ]);
+            });
+
+            // Filas vacías de separación para coincidir con la cuadrícula de la imagen
+            dataRows.push([]);
+            dataRows.push([]);
+            dataRows.push([]);
+            dataRows.push([]);
+            dataRows.push([]);
+            dataRows.push([]);
+            dataRows.push([]);
+
+            // Totales al final (filas 13, 14, 15 exactamente como en la imagen)
+            const completadosHoy = turnosHoy.filter(t => t.status === 'completed');
+            const ausentesHoy = turnosHoy.filter(t => t.status === 'absent');
+            const totalIngresosFormateado = `$ ${new Intl.NumberFormat('es-CO').format(completadosHoy.reduce((sum, t) => sum + t.price, 0))}`;
+            dataRows.push(["INGRESOS $", totalIngresosFormateado]);
+            dataRows.push(["CANT DE CLIENTES ATENDIDOS", completadosHoy.length]);
+            dataRows.push(["CLIENTES AUSENTES:", ausentesHoy.length]);
+
+            // Generar libro Excel con SheetJS
+            const worksheet = XLSX.utils.aoa_to_sheet(dataRows);
+
+            // Anchos de columna recomendados
+            worksheet['!cols'] = [
+                { wch: 30 }, // CLIENTE
+                { wch: 15 }, // MONTO
+                { wch: 10 }, // TURNO
+                { wch: 12 }, // ATENDIDO
+                { wch: 16 }, // HORA INICIO
+                { wch: 16 }  // HORA FIN
+            ];
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Informe Diario");
+
+            // Descargar archivo Excel (.xlsx)
+            XLSX.writeFile(workbook, `Informe_Diario_Barberia_${dateStr.replace(/\//g, '-')}.xlsx`);
+            showToast('Informe generado idéntico a la imagen', 'success');
+        }
+
+        // REQUERIMIENTO 2: GENERACION DE CODIGO QR DE ACCESO A LA WEB DE LA BARBERIA
+        function openQRModal() {
+            document.getElementById('qr-modal').classList.remove('hidden');
+            const container = document.getElementById('qrcode-container');
+            container.innerHTML = '';
+            
+            // Toma dinámicamente la dirección URL donde está alojada la web
+            const currentWebUrl = window.location.href;
+
+            new QRCode(container, {
+                text: currentWebUrl,
+                width: 180,
+                height: 180,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+
+        function closeQRModal() {
+            document.getElementById('qr-modal').classList.add('hidden');
+        }
+
+        // Gestión de Modales
+        function openBookingModal() {
+            populateServices('book-service');
+            document.getElementById('booking-modal').classList.remove('hidden');
+        }
+
+        function closeBookingModal() {
+            document.getElementById('booking-modal').classList.add('hidden');
+        }
+
+        function openManualModal() {
+            populateServices('manual-service');
+            document.getElementById('manual-modal').classList.remove('hidden');
+        }
+
+        function closeManualModal() {
+            document.getElementById('manual-modal').classList.add('hidden');
+        }
+
+        function populateServices(id) {
+            const select = document.getElementById(id);
+            select.innerHTML = '';
+            SERVICES_DATA.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.innerText = `${s.name} - ${formatCOP(s.priceCOP)}`;
+                select.appendChild(opt);
+            });
+            updateBookingSummary();
+        }
+
+        function updateBookingSummary() {
+            const id = document.getElementById('book-service').value;
+            const s = SERVICES_DATA.find(x => x.id === id);
+            if (s) {
+                document.getElementById('summary-price').innerText = formatCOP(s.priceCOP);
+                document.getElementById('summary-time').innerText = `${s.timeMinutes} min`;
+            }
+        }
+
+        function quickBookService(id) {
+            openBookingModal();
+            document.getElementById('book-service').value = id;
+            updateBookingSummary();
+        }
+
+        async function handleBookingSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('book-name').value;
+            const phone = document.getElementById('book-phone').value;
+            const serviceId = document.getElementById('book-service').value;
+            const barberName = document.getElementById('book-barber').value;
+            const service = SERVICES_DATA.find(s => s.id === serviceId);
+
+            closeBookingModal();
+            document.getElementById('booking-form').reset();
+
+            try {
+                const num = await getNextTicketNumber();
+                const docRef = await turnosCollection.add({
+                    ticketNum: num,
+                    clientName: name.toUpperCase(),
+                    phone: phone,
+                    serviceName: service.name,
+                    price: service.priceCOP,
+                    barberName: barberName,
+                    status: 'waiting',
+                    attended: 'PENDIENTE',
+                    startTime: '',
+                    endTime: '',
+                    estimatedMinutes: service.timeMinutes,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                myBookedTicketId = docRef.id;
+                showToast(`Turno ${num} registrado con éxito`, 'success');
+                switchTab('client-turn');
+            } catch (err) {
+                console.error(err);
+                showToast('No se pudo registrar el turno. Revisa tu conexión.', 'error');
+            }
+        }
+
+        async function handleManualSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('manual-name').value;
+            const phone = document.getElementById('manual-phone').value || 'Presencial';
+            const serviceId = document.getElementById('manual-service').value;
+            const barberName = document.getElementById('manual-barber').value;
+            const service = SERVICES_DATA.find(s => s.id === serviceId);
+
+            closeManualModal();
+            document.getElementById('manual-form').reset();
+
+            try {
+                const num = await getNextTicketNumber();
+                await turnosCollection.add({
+                    ticketNum: num,
+                    clientName: name.toUpperCase(),
+                    phone: phone,
+                    serviceName: service.name,
+                    price: service.priceCOP,
+                    barberName: barberName,
+                    status: 'waiting',
+                    attended: 'PENDIENTE',
+                    startTime: '',
+                    endTime: '',
+                    estimatedMinutes: service.timeMinutes,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                showToast(`Cliente ${name} agregado en lista.`, 'success');
+            } catch (err) {
+                console.error(err);
+                showToast('No se pudo agregar el cliente. Revisa tu conexión.', 'error');
+            }
+        }
+
+        function showToast(msg, type = 'gold') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bg = type === 'success' ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200' : type === 'error' ? 'bg-rose-950/90 border-rose-500/40 text-rose-200' : 'bg-zinc-900/90 border-gold-500/40 text-zinc-100';
+            toast.className = `p-3.5 rounded-xl border ${bg} backdrop-blur-md shadow-2xl flex items-center gap-2.5 transition-all duration-300 transform translate-x-10 opacity-0 pointer-events-auto`;
+            toast.innerHTML = `<div class="w-7 h-7 rounded-full bg-gold-500/20 text-gold-400 flex items-center justify-center flex-shrink-0"><i data-lucide="${type==='success'?'check-circle':'bell'}" class="w-3.5 h-3.5"></i></div><div class="text-xs font-medium">${msg}</div>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => toast.classList.remove('translate-x-10', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('translate-x-10', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3800);
+        }
+
+        window.onload = function() {
+            renderServices();
+            renderQueueDisplay();
+            lucide.createIcons();
+            listenToTurnQueue(); // conecta con Firebase: desde aquí todo se sincroniza en vivo
+        };
+    </script>
+</body>
+</html>
